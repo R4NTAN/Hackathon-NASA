@@ -6,6 +6,16 @@ pip3 install math
 
 python3 aqi_get.py
 """
+"""
+Pseudo-random AQI generator – uses real EPA breakpoints.
+>>> from aqi_prng import fake_aqi
+>>> fake_aqi()
+{'AQI': 137,
+ 'category': 'Unhealthy for Sensitive Groups',
+ 'colour': '#ff7e00',
+ 'dominant': 'PM2.5',
+ 'conc': {'PM2.5': 49.7, 'PM10': 88, 'O3': 0.065, 'NO2': 0.08, 'SO2': 35, 'CO': 4.2}}
+"""
 import json, random, math
 
 # EPA breakpoints  (μg/m³ except O₃/NO₂/SO₂ ppm, CO mg/m³)
@@ -76,15 +86,37 @@ def _category(aqi):
 
 # ---------- pseudo-random generator ----------
 def fake_conc():
-    """Invent realistic-ish concentrations."""
-    return {
-      "PM2.5": random.uniform(5, 250),
-      "PM10":  random.uniform(10, 400),
-      "O3":    random.uniform(0.02, 0.20),
-      "NO2":   random.uniform(0.01, 0.50),
-      "SO2":   random.uniform(5, 300),
-      "CO":    random.uniform(0.5, 15)
-    }
+    """Return concentrations that always yield 0 ≤ AQI ≤ 200."""
+    while True:
+        # 1. PM2.5 – beta skewed low
+        pm25 = random.betavariate(3, 9) * 95 + 2        # 2 … 97 µg/m³
+
+        # 2. PM10 – truncated normal
+        pm10 = max(5, min(220, random.gauss(45, 20)))   # 5 … 220 µg/m³
+
+        # 3. O₃ – rarely > 0.10 ppm
+        o3 = random.betavariate(2, 12) * 0.12 + 0.01   # 0.01 … 0.13 ppm
+
+        # 4. NO₂ – urban typical
+        no2 = max(0.005, min(0.36, random.gauss(0.025, 0.015)))
+
+        # 5. SO₂ – low exponential
+        so2 = random.expovariate(1/20) + 2              # 2 … ~45 µg/m³
+
+        # 6. CO – gamma, capped
+        co = min(12, random.gammavariate(2, 1.2) + 0.2)  # 0.2 … 12 mg/m³
+
+        conc = {"PM2.5": round(pm25, 1),
+                "PM10":  round(pm10, 1),
+                "O3":    round(o3, 3),
+                "NO2":   round(no2, 3),
+                "SO2":   round(so2, 1),
+                "CO":    round(co, 1)}
+
+        # 7. enforce AQI ≤ 200
+        aqi_val, _, _ = _aqi_from_pollutants(conc)
+        if aqi_val <= 200:
+            return conc
 
 def fake_aqi():
     """Return full fake report."""
