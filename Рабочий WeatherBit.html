@@ -150,9 +150,7 @@ aside h1 {
   box-shadow:0 0 4px rgba(0,0,0,0.3);
   transition: border-color 0.2s;
 }
-.marker-dot:active {
-  border-color:#888; /* при кліку стає сірою */
-}
+.marker-dot:active { border-color:#888; }
 </style>
 </head>
 <body>
@@ -201,7 +199,7 @@ aside h1 {
     <div id="statusText" class="value">Ready</div>
   </div>
 
-  <div class="footer">🌐 OpenAQ + OpenWeatherMap</div>
+  <div class="footer">🌐 <b>Weatherbit AQ</b> + OpenWeatherMap</div>
 </aside>
 
 <main><div id="map"></div></main>
@@ -211,6 +209,7 @@ aside h1 {
 <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 <script>
 const OPENWEATHER_API_KEY='f96276a10ff40c3e256ba7991d7df571';
+const WEATHERBIT_API_KEY='fa4e7a869cfd438999ca8c086959b4b1'; // 🔑 встав свій ключ
 
 // --- Map Layers ---
 const layers = {
@@ -268,50 +267,111 @@ map.on('click',e=>{
 
 // --- AQI ---
 function pm25ToAQI(pm25){
-  const breaks=[{cLow:0,cHigh:12,aLow:0,aHigh:50},{cLow:12.1,cHigh:35.4,aLow:51,aHigh:100},{cLow:35.5,cHigh:55.4,aLow:101,aHigh:150},{cLow:55.5,cHigh:150.4,aLow:151,aHigh:200},{cLow:150.5,cHigh:250.4,aLow:201,aHigh:300},{cLow:250.5,cHigh:350.4,aLow:301,aHigh:400},{cLow:350.5,cHigh:500.4,aLow:401,aHigh:500}];
-  for(const b of breaks){if(pm25>=b.cLow&&pm25<=b.cHigh){const aqi=Math.round(((b.aHigh-b.aLow)/(b.cHigh-b.cLow))*(pm25-b.cLow)+b.aLow);let cat='Unknown';if(aqi<=50)cat='Good';else if(aqi<=100)cat='Moderate';else if(aqi<=150)cat='Unhealthy for sensitive';else if(aqi<=200)cat='Unhealthy';else cat='Hazardous';return {aqi,category:cat};}}
+  const breaks=[
+    {cLow:0,cHigh:12,aLow:0,aHigh:50},
+    {cLow:12.1,cHigh:35.4,aLow:51,aHigh:100},
+    {cLow:35.5,cHigh:55.4,aLow:101,aHigh:150},
+    {cLow:55.5,cHigh:150.4,aLow:151,aHigh:200},
+    {cLow:150.5,cHigh:250.4,aLow:201,aHigh:300},
+    {cLow:250.5,cHigh:350.4,aLow:301,aHigh:400},
+    {cLow:350.5,cHigh:500.4,aLow:401,aHigh:500}
+  ];
+  for(const b of breaks){
+    if(pm25>=b.cLow&&pm25<=b.cHigh){
+      const aqi=Math.round(((b.aHigh-b.aLow)/(b.cHigh-b.cLow))*(pm25-b.cLow)+b.aLow);
+      let cat='Unknown';
+      if(aqi<=50)cat='Good';
+      else if(aqi<=100)cat='Moderate';
+      else if(aqi<=150)cat='Unhealthy for sensitive';
+      else if(aqi<=200)cat='Unhealthy';
+      else cat='Hazardous';
+      return {aqi,category:cat};
+    }
+  }
   return {aqi:null,category:'N/A'};
 }
-function chooseColorFromAQ(pm25){if(pm25<=12)return'#00e400';if(pm25<=35.4)return'#ffff00';if(pm25<=55.4)return'#ff7e00';return'#ff0000';}
+function chooseColorFromAQ(pm25){
+  if(pm25<=12)return'#00e400';
+  if(pm25<=35.4)return'#ffff00';
+  if(pm25<=55.4)return'#ff7e00';
+  return'#ff0000';
+}
 function weatherIconUrl(icon){return `https://openweathermap.org/img/wn/${icon}.png`;}
 
 // --- Custom Marker ---
 function createCustomMarker(color) {
   return L.divIcon({
     className: "custom-marker",
-    html: `<span class="marker-dot" style="
-      background:${color};
-    "></span>`,
+    html: `<span class="marker-dot" style="background:${color};"></span>`,
     iconSize: [16, 16],
     iconAnchor: [8, 8],
     popupAnchor: [0, -8]
   });
 }
 
-// --- API ---
+// --- AIR (Weatherbit) ---
 async function fetchOpenAQ(lat,lon){
+  // Тепер беремо з Weatherbit "current/airquality"
+  const url=`https://api.weatherbit.io/v2.0/current/airquality?lat=${lat}&lon=${lon}&key=${WEATHERBIT_API_KEY}`;
   try{
-    const r=await fetch(`https://api.openaq.org/v3/latest?coordinates=${lat},${lon}&radius=50000&limit=10`);
-    const d=await r.json();
-    if(!d.results||d.results.length===0)return[{parameter:'pm25',value:0,unit:'µg/m³'}];
-    const arr=[];d.results.forEach(r=>r.measurements.forEach(m=>arr.push({parameter:m.parameter,value:m.value,unit:m.unit})));
+    const r=await fetch(url);
+    const j=await r.json();
+    const d=(j&&j.data&&j.data[0])?j.data[0]:null;
+    if(!d){
+      return [{parameter:'pm25',value:0,unit:'µg/m³'}];
+    }
+    // Приводимо до формату, який далі очікує UI
+    const arr=[
+      {parameter:'pm25', value:d.pm25, unit:'µg/m³'},
+      {parameter:'pm10', value:d.pm10, unit:'µg/m³'},
+      {parameter:'o3',   value:d.o3,   unit:'µg/m³'},
+      {parameter:'no2',  value:d.no2,  unit:'µg/m³'},
+      {parameter:'so2',  value:d.so2,  unit:'µg/m³'},
+      {parameter:'co',   value:d.co,   unit:'µg/m³'},
+      {parameter:'aqi',  value:d.aqi,  unit:'US AQI'}
+    ].filter(m=>m.value!==undefined&&m.value!==null);
     return arr;
-  }catch(e){console.error(e);return[{parameter:'pm25',value:0,unit:'µg/m³'}];}
+  }catch(e){
+    console.error(e);
+    return [{parameter:'pm25',value:0,unit:'µg/m³'}];
+  }
 }
 
+// --- WEATHER (OpenWeather) ---
 async function fetchWeather(lat,lon){
   try{
     const r=await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${OPENWEATHER_API_KEY}&lang=en`);
     const d=await r.json();if(!d.main)return null;
-    return{temp:d.main.temp,humidity:d.main.humidity,pressure:d.main.pressure,description:d.weather[0].description,icon:d.weather[0].icon,clouds:d.clouds?d.clouds.all:null,wind_deg:d.wind?d.wind.deg:null,wind_speed:d.wind?d.wind.speed:null,country:d.sys?d.sys.country:'',name:d.name||''};
+    return{
+      temp:d.main.temp,humidity:d.main.humidity,pressure:d.main.pressure,
+      description:d.weather[0].description,icon:d.weather[0].icon,
+      clouds:d.clouds?d.clouds.all:null,
+      wind_deg:d.wind?d.wind.deg:null,wind_speed:d.wind?d.wind.speed:null,
+      country:d.sys?d.sys.country:'',name:d.name||''
+    };
   }catch(e){console.error(e);return null;}
 }
 
 // --- Popups ---
 function buildPopupHtml(label,meas,w){
-  let pm=meas.find(m=>m.parameter==='pm25'||m.parameter==='pm2.5');
-  let aqiObj=pm?pm25ToAQI(pm.value):null;
-  let aqiStr=aqiObj?`${aqiObj.aqi} — ${aqiObj.category}`:'';
+  const pm=meas.find(m=>m.parameter==='pm25'||m.parameter==='pm2.5');
+  const aqiMeas=meas.find(m=>m.parameter==='aqi');
+  let aqiStr='';
+  if(aqiMeas && aqiMeas.value!=null){
+    // пріоритет готовому AQI від Weatherbit
+    const val=aqiMeas.value;
+    let cat='Good';
+    if(val>50 && val<=100) cat='Moderate';
+    else if(val>100 && val<=150) cat='Unhealthy for sensitive';
+    else if(val>150 && val<=200) cat='Unhealthy';
+    else if(val>200 && val<=300) cat='Very Unhealthy';
+    else if(val>300) cat='Hazardous';
+    aqiStr=`${val} — ${cat}`;
+  }else if(pm){
+    const aqiObj=pm25ToAQI(pm.value);
+    aqiStr=`${aqiObj.aqi} — ${aqiObj.category}`;
+  }
+
   let html=`<div class="weather-popup-title">${label||'Weather'}</div><table class="weather-popup-table">
   <tr><td>Country</td><td>${w?.country||'-'}</td></tr>
   <tr><td>Temp</td><td>${w?.temp?.toFixed(1)||'-'}°C</td></tr>
@@ -319,7 +379,7 @@ function buildPopupHtml(label,meas,w){
   <tr><td>Humidity</td><td>${w?.humidity??'-'}%</td></tr>
   <tr><td>Pressure</td><td>${w?.pressure??'-'} hPa</td></tr>
   <tr><td>Wind</td><td>${w?.wind_speed?.toFixed(1)||'-'} m/s</td></tr>
-  ${aqiObj?`<tr><td>AQI</td><td>${aqiStr}</td></tr>`:''}
+  ${aqiStr?`<tr><td>AQI</td><td>${aqiStr}</td></tr>`:''}
   <tr><td colspan="2" style="text-align:center;">${w?.icon?`<img class="weather-icon" src="${weatherIconUrl(w.icon)}"/>`:''} ${w?.description||''}</td></tr>
   </table>`;
   return html;
@@ -328,17 +388,17 @@ function buildPopupHtml(label,meas,w){
 // --- Markers ---
 function createOrUpdateSingleMarker(lat,lon,label,meas,w){
   if(singleMarker){map.removeLayer(singleMarker);singleMarker=null;}
-  let pm=meas.find(m=>m.parameter==='pm25'||m.parameter==='pm2.5');
-  let color=pm?chooseColorFromAQ(pm.value):'#999';
+  const pm=meas.find(m=>m.parameter==='pm25'||m.parameter==='pm2.5');
+  const color=pm?chooseColorFromAQ(pm.value):'#999';
   singleMarker=L.marker([lat,lon],{icon:createCustomMarker(color)})
     .addTo(map)
     .bindPopup(buildPopupHtml(label,meas,w),{maxWidth:340,minWidth:240})
     .on("click",()=>map.setView([lat,lon],8,{animate:true}));
 }
 function createOrUpdateCityMarker(lat,lon,label,meas,w){
-  let pm=meas.find(m=>m.parameter==='pm25'||m.parameter==='pm2.5');
-  let color=pm?chooseColorFromAQ(pm.value):'#999';
-  let marker=L.marker([lat,lon],{icon:createCustomMarker(color)})
+  const pm=meas.find(m=>m.parameter==='pm25'||m.parameter==='pm2.5');
+  const color=pm?chooseColorFromAQ(pm.value):'#999';
+  const marker=L.marker([lat,lon],{icon:createCustomMarker(color)})
     .addTo(map)
     .bindPopup(buildPopupHtml(label,meas,w),{maxWidth:340,minWidth:240})
     .on("click",()=>map.setView([lat,lon],8,{animate:true}));
@@ -435,7 +495,6 @@ const predefined = [
   {name:'Santiago de Cuba', coords:[20.0169,-75.8302]}
 ];
 
-
 (async()=>{
   setStatus('Loading cities...');
   for(const c of predefined){
@@ -460,4 +519,3 @@ if(typeof L.Control.Geocoder!=='undefined'){
 </script>
 </body>
 </html>
-
