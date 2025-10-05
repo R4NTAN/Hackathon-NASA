@@ -17,11 +17,13 @@
 
 | Role | Name |
 |------|------|
-| Team Lead | *[Enter Name]* |
-| Data Scientist | *[Enter Name]* |
-| Developer | *[Enter Name]* |
-| UI/UX Designer | *[Enter Name]* |
-| Research Analyst | *[Enter Name]* |
+| Team Lead | nongrata |
+| Data Scientist | kybik |
+| Developer Frontend | ecstasy |
+| Developer Backend| over4nt |
+| UI/UX Designer | cipherlgr |
+| UI/UX Designer | chiefkeef |
+
 
 ---
 
