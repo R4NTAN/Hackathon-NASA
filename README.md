@@ -13,7 +13,7 @@
 ## 👥 Team  
 **Team Name:** EXPLOITCREW  
 **Event:** NASA Space Apps Challenge 2025  
-**Theme:** Environmental Data & Cloud-based Analysis  
+**Theme:** Environmental Data Analysis  
 
 | Role | Name |
 |------|------|
