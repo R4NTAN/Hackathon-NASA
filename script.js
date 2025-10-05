@@ -1,24 +1,46 @@
 const OPENWEATHER_API_KEY='f96276a10ff40c3e256ba7991d7df571';
-const WEATHERBIT_API_KEY='fa4e7a869cfd438999ca8c086959b4b1';
+const WEATHERBIT_API_KEY='9757754398094f7f9590179397e6076d';
 
-// --- Map Layers ---
+// --- Map Layers (no wrapping) ---
 const layers = {
-  light: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{maxZoom:19, attribution:'&copy; CARTO'}),
+  light: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19, attribution: '&copy; CARTO', noWrap: true
+  }),
   satellite: L.layerGroup([
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom:19, attribution:'Imagery © Esri'
+      maxZoom: 19, attribution: 'Imagery © Esri', noWrap: true
     }),
     L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom:19, attribution:'Labels © Esri'
+      maxZoom: 19, attribution: 'Labels © Esri', noWrap: true
     })
   ]),
-  terrain: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {maxZoom:17, attribution:'Map data: &copy; OpenTopoMap'}),
-  dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {maxZoom:19, attribution:'&copy; CARTO'})
+  terrain: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+    maxZoom: 17, attribution: 'Map data: &copy; OpenTopoMap', noWrap: true
+  }),
+  dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19, attribution: '&copy; CARTO', noWrap: true
+  })
 };
 
-const map = L.map('map',{center:[40,-100],zoom:4});
+// --- Map (bounded, no horizontal wrap) ---
+const WORLD_LAT = 85.05112878;
+const map = L.map('map', {
+  center: [40, -100],
+  zoom: 4,
+  minZoom: 3,             // заборона надто сильного віддалення (порожні області)
+  maxZoom: 19,
+  worldCopyJump: false,
+  maxBoundsViscosity: 1.0,
+  // ставимо тимчасово без maxBounds — встановимо нижче після додавання шару
+});
 let currentBase = layers.satellite;
 currentBase.addTo(map);
+
+// Встановлюємо суворі межі після додавання тайлів (щоб карта не виходила за видимі тайли)
+const bounds = L.latLngBounds([[-WORLD_LAT, -180], [WORLD_LAT, 180]]);
+map.setMaxBounds(bounds);
+map.options.maxBounds = bounds;
+map.options.maxBoundsViscosity = 1.0;
 
 // Елементи UI
 const coordsEl = document.querySelector('.coordinates-display');
@@ -429,4 +451,3 @@ if(typeof L.Control.Geocoder !== 'undefined'){
 }
 
 setStatus('Air Quality Monitor Ready');
-
