@@ -19,8 +19,8 @@
 |------|------|
 | Team Lead | nongrata |
 | Data Scientist | kybik |
-| Developer Frontend | ecstasy |
-| Developer Backend| over4nt |
+| Developer Front end | ecstasy |
+| Developer Back end| over4nt |
 | UI/UX Designer | cipherlgr |
 | UI/UX Designer | chiefkeef |
 
