@@ -26,8 +26,9 @@
 
 ---
 
-## 🖥️ Our presintation:
+## 🖥️ Our presintation and video
 
-https://www.canva.com/design/DAG07K-8DQs/NYf3CAf5fplN6RLgEEkHcw/edit?utm_content=DAG07K-8DQs&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton
+Presintation https://www.canva.com/design/DAG07K-8DQs/NYf3CAf5fplN6RLgEEkHcw/edit?utm_content=DAG07K-8DQs&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton
+Video https://youtu.be/ENpbEUYLE1o
 
 ---
