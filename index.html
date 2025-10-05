@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>Air Quality Monitor</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"/>
+<link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+<div class="app">
+  <main>
+    <div id="map"></div>
+
+    <!-- Search Box -->
+    <div class="search-container">
+      <input type="text" id="searchInput" placeholder="Search for city or address..." class="search-input"/>
+      <button id="searchBtn" class="search-btn">🔍</button>
+    </div>
+
+    <!-- Coordinates -->
+    <div id="coords" class="coordinates-display">Move mouse over map</div>
+
+    <!-- AQI Legend -->
+    <div class="legend-map">
+      <div class="legend-title">AQI Levels</div>
+      <div class="legend-item"><span class="sw good"></span> Good (0–50)</div>
+      <div class="legend-item"><span class="sw moderate"></span> Moderate (51–100)</div>
+      <div class="legend-item"><span class="sw unhealthy1"></span> Unhealthy (101–150)</div>
+      <div class="legend-item"><span class="sw unhealthy2"></span> Very Unhealthy (151+)</div>
+    </div>
+  </main>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
