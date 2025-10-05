@@ -404,25 +404,6 @@ const predefined = [
   {name:'Leon', coords:[21.1250,-101.6860]},
   {name:'Zapopan', coords:[20.6718,-103.4165]},
 
-  // Європа
-  {name:'London', coords:[51.5074,-0.1278]},
-  {name:'Paris', coords:[48.8566,2.3522]},
-  {name:'Berlin', coords:[52.5200,13.4050]},
-  {name:'Madrid', coords:[40.4168,-3.7038]},
-  {name:'Rome', coords:[41.9028,12.4964]},
-  {name:'Amsterdam', coords:[52.3676,4.9041]},
-  {name:'Brussels', coords:[50.8503,4.3517]},
-  {name:'Vienna', coords:[48.2082,16.3738]},
-
-  // Азія
-  {name:'Tokyo', coords:[35.6762,139.6503]},
-  {name:'Beijing', coords:[39.9042,116.4074]},
-  {name:'Shanghai', coords:[31.2304,121.4737]},
-  {name:'Delhi', coords:[28.6139,77.2090]},
-  {name:'Mumbai', coords:[19.0760,72.8777]},
-  {name:'Singapore', coords:[1.3521,103.8198]},
-  {name:'Seoul', coords:[37.5665,126.9780]},
-  {name:'Hong Kong', coords:[22.3193,114.1694]}
 ];
 
 (async() => {
@@ -448,3 +429,4 @@ if(typeof L.Control.Geocoder !== 'undefined'){
 }
 
 setStatus('Air Quality Monitor Ready');
+
