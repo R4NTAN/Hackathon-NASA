@@ -10,72 +10,26 @@
 </head>
 <body>
 <div class="app">
-  
-  <!-- Кнопка для відкриття/закриття панелі -->
-  <div class="panel-toggle" id="panelToggle">☰ Air Quality</div>
-
-  <!-- Бічна панель -->
-  <aside id="sidePanel" class="panel-hidden">
-    <div class="panel-header">
-      <h1>🌍 Air Quality Monitor</h1>
-      <button class="close-btn" id="closePanel">×</button>
-    </div>
-
-    <div class="panel-content">
-      <!-- Current Data Cards -->
-      <div class="data-cards">
-        <div class="data-card">
-          <div class="label">📍 Current Location</div>
-          <div id="locationName" class="value">Click on map</div>
-        </div>
-
-        <div class="data-card">
-          <div class="label">🌡️ Temperature</div>
-          <div id="temperature" class="value">-</div>
-        </div>
-
-        <div class="data-card">
-          <div class="label">💨 Air Quality (AQI)</div>
-          <div id="aqi" class="value">-</div>
-        </div>
-
-        <div class="data-card">
-          <div class="label">💧 Humidity</div>
-          <div id="humidity" class="value">-</div>
-        </div>
-
-        <div class="data-card">
-          <div class="label">🌤️ Weather</div>
-          <div id="weather" class="value">-</div>
-        </div>
-      </div>
-
-      <!-- Controls -->
-      <div class="controls">
-        <button id="locateBtn" class="btn primary">📍 Locate me</button>
-      </div>
-
-      <!-- Legend -->
-      <div class="legend">
-        <div class="legend-title">AQI Levels</div>
-        <div class="legend-item"><span class="sw good"></span> Good (0–50)</div>
-        <div class="legend-item"><span class="sw moderate"></span> Moderate (51–100)</div>
-        <div class="legend-item"><span class="sw unhealthy1"></span> Unhealthy (101–150)</div>
-        <div class="legend-item"><span class="sw unhealthy2"></span> Very Unhealthy (151+)</div>
-      </div>
-
-      <!-- Status -->
-      <div class="status-card">
-        <div class="label">📊 Status</div>
-        <div id="statusText" class="value">Ready</div>
-      </div>
-    </div>
-  </aside>
-
   <main>
     <div id="map"></div>
+    
+    <!-- Search Box in Upper Right Corner -->
+    <div class="search-container">
+      <input type="text" id="searchInput" placeholder="Search for city or address..." class="search-input"/>
+      <button id="searchBtn" class="search-btn">🔍</button>
+    </div>
+    
     <!-- Координати в лівому нижньому куті -->
     <div id="coords" class="coordinates-display">Move mouse over map</div>
+    
+    <!-- Легенда AQI -->
+    <div class="legend-map">
+      <div class="legend-title">AQI Levels</div>
+      <div class="legend-item"><span class="sw good"></span> Good (0–50)</div>
+      <div class="legend-item"><span class="sw moderate"></span> Moderate (51–100)</div>
+      <div class="legend-item"><span class="sw unhealthy1"></span> Unhealthy (101–150)</div>
+      <div class="legend-item"><span class="sw unhealthy2"></span> Very Unhealthy (151+)</div>
+    </div>
   </main>
 </div>
 

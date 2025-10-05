@@ -11,8 +11,8 @@ html,body{height:100%;margin:0;font-family:Inter,sans-serif;background:var(--bg)
     position: absolute;
 }
 
-/* Кнопка відкриття панелі */
-.panel-toggle {
+/* Search Container in Upper Right */
+.search-container {
   position: absolute;
   top: 25px;
   left: 25px;
@@ -75,9 +75,7 @@ aside {
   top: -50%;
   right: -50%;
   width: 100%;
-  height: 100%;
-  background: rgba(255,255,255,0.1);
-  transform: rotate(30deg);
+  font-weight: 500;
 }
 
 .panel-header h1 {
@@ -144,8 +142,8 @@ aside {
   border: 1px solid rgba(255,255,255,0.5);
 }
 
-.data-card::before {
-  content: '';
+/* Координати в лівому нижньому куті */
+.coordinates-display {
   position: absolute;
   top: 0;
   left: 0;
@@ -297,6 +295,7 @@ aside {
   margin: -10px -10px 12px -10px;
   font-size: 1.1rem;
 }
+
 .weather-popup-table {
   width: 100%;
   border-collapse: collapse;
@@ -317,11 +316,90 @@ aside {
   padding-left: 10px;
   color: #222;
 }
+
+/* Forecast Navigation */
+.forecast-nav {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 15px;
+  border-top: 1px solid rgba(0,0,0,0.1);
+  padding-top: 12px;
+}
+
+.forecast-btn {
+  flex: 1;
+  padding: 8px 5px;
+  margin: 0 2px;
+  border: none;
+  border-radius: 8px;
+  background: #f0f4f8;
+  color: #333;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+}
+
+.forecast-btn:hover {
+  background: #e1e8f0;
+  transform: translateY(-2px);
+}
+
+.forecast-btn.active {
+  background: var(--accent);
+  color: white;
+  box-shadow: 0 3px 10px rgba(14, 165, 233, 0.3);
+}
+
+/* Forecast Data Styles */
+.forecast-data {
+  max-height: 200px;
+  overflow-y: auto;
+  margin-top: 10px;
+}
+
+.forecast-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+
+.forecast-time {
+  font-weight: 600;
+  color: #333;
+  font-size: 0.9rem;
+}
+
+.forecast-temp {
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.forecast-aqi {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: white;
+  min-width: 40px;
+  text-align: center;
+}
+
 .leaflet-popup-content-wrapper {
   border-radius: 12px;
   box-shadow: 0 8px 30px rgba(0,0,0,0.25);
   border: 2px solid rgba(255,255,255,0.5);
 }
+
+.leaflet-popup-content {
+  margin: 0;
+  padding: 10px;
+  width: auto !important;
+}
+
 .marker-dot {
   display:inline-block;
   width:16px;

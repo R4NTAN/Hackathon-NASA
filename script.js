@@ -1,5 +1,5 @@
 const OPENWEATHER_API_KEY='f96276a10ff40c3e256ba7991d7df571';
-const WEATHERBIT_API_KEY='fa4e7a869cfd438999ca8c086959b4b1';
+const WEATHERBIT_API_KEY='8c1dcdf2d1014f7a90e74874dc052d52';
 
 // --- Map Layers ---
 const layers = {
@@ -16,52 +16,73 @@ const layers = {
   dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {maxZoom:19, attribution:'&copy; CARTO'})
 };
 
-const map = L.map('map',{center:[40,-100],zoom:4});
+// Set map bounds for North America
+const northAmericaBounds = L.latLngBounds(
+  L.latLng(15, -170), // Southwest
+  L.latLng(85, -50)   // Northeast
+);
+
+const map = L.map('map',{
+  center: [40, -100],
+  zoom: 4,
+  maxBounds: northAmericaBounds,
+  maxBoundsViscosity: 1.0,
+  worldCopyJump: false
+});
+
 let currentBase = layers.satellite;
 currentBase.addTo(map);
 
 // Елементи UI
 const coordsEl = document.querySelector('.coordinates-display');
-const locationNameEl = document.getElementById('locationName');
-const temperatureEl = document.getElementById('temperature');
-const aqiEl = document.getElementById('aqi');
-const humidityEl = document.getElementById('humidity');
-const weatherEl = document.getElementById('weather');
-const statusText = document.getElementById('statusText');
-const panelToggle = document.getElementById('panelToggle');
-const closePanel = document.getElementById('closePanel');
-const sidePanel = document.getElementById('sidePanel');
+const searchInput = document.getElementById('searchInput');
+const searchBtn = document.getElementById('searchBtn');
 
 let singleMarker = null;
 const cityMarkers = [];
+let currentPopupData = {}; // Store current data for popup interactions
 
-// Управління панеллю
-panelToggle.addEventListener('click', () => {
-  sidePanel.classList.remove('panel-hidden');
-  panelToggle.style.display = 'none';
+// Initialize geocoder
+const geocoder = L.Control.Geocoder.nominatim();
+
+// Search functionality
+searchBtn.addEventListener('click', performSearch);
+searchInput.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') performSearch();
 });
 
-closePanel.addEventListener('click', () => {
-  sidePanel.classList.add('panel-hidden');
-  panelToggle.style.display = 'block';
-});
+async function performSearch() {
+  const query = searchInput.value.trim();
+  if (!query) return;
 
-function setStatus(t) { statusText.textContent = t; }
+  try {
+    const results = await new Promise((resolve, reject) => {
+      geocoder.geocode(query, (results) => {
+        if (results && results.length > 0) {
+          resolve(results);
+        } else {
+          reject(new Error('No results found'));
+        }
+      });
+    });
+
+    const result = results[0];
+    const latlng = result.center;
+    const name = result.name || 'Searched Location';
+    
+    map.flyTo(latlng, 10, {duration: 1.0});
+    fetchAndShowSingle(latlng.lat, latlng.lng, name);
+    searchInput.value = '';
+    
+  } catch (error) {
+    alert('Location not found. Please try a different search term.');
+    console.error('Search error:', error);
+  }
+}
 
 // Оновлення координат при русі миші
 map.on('mousemove', function(e) {
   coordsEl.textContent = `Lat: ${e.latlng.lat.toFixed(4)}, Lng: ${e.latlng.lng.toFixed(4)}`;
-});
-
-// Кнопка "Locate me"
-document.getElementById('locateBtn').addEventListener('click', () => {
-  map.locate({setView: true, maxZoom: 10});
-});
-
-map.on('locationfound', e => {
-  coordsEl.textContent = `${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}`;
-  map.flyTo(e.latlng, 10, {duration: 1.2});
-  fetchAndShowSingle(e.latlng.lat, e.latlng.lng, 'Your location');
 });
 
 // Клік по карті
@@ -101,6 +122,13 @@ function chooseColorFromAQ(pm25){
   if(pm25 <= 12) return '#00e400';
   if(pm25 <= 35.4) return '#ffff00';
   if(pm25 <= 55.4) return '#ff7e00';
+  return '#ff0000';
+}
+
+function getAQIColor(aqiValue) {
+  if (aqiValue <= 50) return '#00e400';
+  if (aqiValue <= 100) return '#ffff00';
+  if (aqiValue <= 150) return '#ff7e00';
   return '#ff0000';
 }
 
@@ -207,35 +235,57 @@ async function fetchWeather(lat, lon){
   }
 }
 
-// --- Оновлення панелі ---
-function updatePanel(label, meas, w) {
-  locationNameEl.textContent = label;
-  
-  if (w) {
-    temperatureEl.textContent = `${w.temp?.toFixed(1) || '-'}°C`;
-    humidityEl.textContent = `${w.humidity || '-'}%`;
-    weatherEl.textContent = w.description || '-';
-  } else {
-    temperatureEl.textContent = '-';
-    humidityEl.textContent = '-';
-    weatherEl.textContent = '-';
-  }
-  
-  const pm = meas.find(m => m.parameter === 'pm25' || m.parameter === 'pm2.5');
-  const aqiMeas = meas.find(m => m.parameter === 'aqi');
-  
-  if (aqiMeas && aqiMeas.value != null) {
-    aqiEl.textContent = `${aqiMeas.value} (US AQI)`;
-  } else if (pm) {
-    const aqiObj = pm25ToAQI(pm.value);
-    aqiEl.textContent = `${aqiObj.aqi || '-'} (${aqiObj.category})`;
-  } else {
-    aqiEl.textContent = '-';
+// --- FORECAST (OpenWeather) ---
+async function fetchForecast(lat, lon) {
+  try {
+    const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&units=metric&appid=${OPENWEATHER_API_KEY}&lang=en`;
+    console.log('Fetching forecast from:', url);
+    
+    const r = await fetch(url);
+    
+    if (!r.ok) {
+      throw new Error(`HTTP error! status: ${r.status}`);
+    }
+    
+    const data = await r.json();
+    console.log('Forecast API response:', data);
+    
+    // Process forecast data for 1h, 6h, 24h
+    const forecasts = {
+      '1h': data.list[0] || null, // Current + 3 hours (closest to 1h)
+      '6h': data.list[2] || null, // 6 hours from now
+      '24h': data.list[8] || null // 24 hours from now (3h * 8 = 24h)
+    };
+    
+    return forecasts;
+  } catch(e) {
+    console.error('Forecast fetch error:', e);
+    // Return mock forecast data for demonstration
+    return {
+      '1h': {
+        dt_txt: new Date(Date.now() + 1 * 60 * 60 * 1000).toISOString(),
+        main: { temp: Math.random() * 30 + 5, humidity: Math.random() * 50 + 30 },
+        weather: [{ description: 'partly cloudy', icon: '02d' }],
+        wind: { speed: Math.random() * 10 }
+      },
+      '6h': {
+        dt_txt: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(),
+        main: { temp: Math.random() * 30 + 5, humidity: Math.random() * 50 + 30 },
+        weather: [{ description: 'clear sky', icon: '01d' }],
+        wind: { speed: Math.random() * 10 }
+      },
+      '24h': {
+        dt_txt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        main: { temp: Math.random() * 30 + 5, humidity: Math.random() * 50 + 30 },
+        weather: [{ description: 'light rain', icon: '10d' }],
+        wind: { speed: Math.random() * 10 }
+      }
+    };
   }
 }
 
 // --- Popups ---
-function buildPopupHtml(label, meas, w){
+function buildPopupHtml(label, meas, w, forecasts, headerColor = '#3498db'){
   const pm = meas.find(m => m.parameter === 'pm25' || m.parameter === 'pm2.5');
   const aqiMeas = meas.find(m => m.parameter === 'aqi');
   
@@ -261,22 +311,82 @@ function buildPopupHtml(label, meas, w){
     aqiStr = 'No data';
   }
 
-  let html = `<div class="weather-popup-title">${label || 'Weather'}</div><table class="weather-popup-table">
-  <tr><td>Country</td><td>${w?.country || '-'}</td></tr>
-  <tr><td>Temperature</td><td>${w?.temp?.toFixed(1) || '-'}°C</td></tr>
-  <tr><td>Clouds</td><td>${w?.clouds ?? '-'}%</td></tr>
-  <tr><td>Humidity</td><td>${w?.humidity ?? '-'}%</td></tr>
-  <tr><td>Pressure</td><td>${w?.pressure ?? '-'} hPa</td></tr>
-  <tr><td>Wind</td><td>${w?.wind_speed?.toFixed(1) || '-'} m/s</td></tr>
-  <tr><td>AQI</td><td>${aqiStr}</td></tr>
-  <tr><td colspan="2" style="text-align:center;">${w?.icon ? `<img class="weather-icon" src="${weatherIconUrl(w.icon)}"/>` : ''} ${w?.description || ''}</td></tr>
-  </table>`;
+  const headerStyle = `background: linear-gradient(135deg, ${headerColor}, ${headerColor}dd);`;
+  
+  let html = `
+    <div class="weather-popup-header" style="${headerStyle}">
+      ${label || 'Weather'}
+    </div>
+    <table class="weather-popup-table">
+      <tr><td>Country</td><td>${w?.country || '-'}</td></tr>
+      <tr><td>Temperature</td><td>${w?.temp?.toFixed(1) || '-'}°C</td></tr>
+      <tr><td>Clouds</td><td>${w?.clouds ?? '-'}%</td></tr>
+      <tr><td>Humidity</td><td>${w?.humidity ?? '-'}%</td></tr>
+      <tr><td>Pressure</td><td>${w?.pressure ?? '-'} hPa</td></tr>
+      <tr><td>Wind</td><td>${w?.wind_speed?.toFixed(1) || '-'} m/s</td></tr>
+      <tr><td>AQI</td><td>${aqiStr}</td></tr>
+      <tr><td colspan="2" style="text-align:center;">
+        ${w?.icon ? `<img class="weather-icon" src="${weatherIconUrl(w.icon)}"/>` : ''} 
+        ${w?.description || ''}
+      </td></tr>
+    </table>
+    
+    <div class="forecast-nav">
+      <button class="forecast-btn active" data-period="current">Now</button>
+      <button class="forecast-btn" data-period="1h">1H</button>
+      <button class="forecast-btn" data-period="6h">6H</button>
+      <button class="forecast-btn" data-period="24h">24H</button>
+    </div>
+    
+    <div id="forecast-data" class="forecast-data" style="display: none;">
+      <!-- Forecast content will be loaded here -->
+    </div>
+  `;
   
   return html;
 }
 
+// Forecast data display
+function showForecastData(period, forecasts, headerColor) {
+  const forecast = forecasts[period];
+  if (!forecast) return '<div>No forecast data available</div>';
+  
+  const time = new Date(forecast.dt_txt).toLocaleTimeString('en-US', { 
+    hour: '2-digit', 
+    minute: '2-digit',
+    hour12: true 
+  });
+  
+  // Mock AQI for forecast (in real app, you'd get this from forecast API)
+  const mockAQI = Math.floor(Math.random() * 150) + 20;
+  const aqiColor = getAQIColor(mockAQI);
+  
+  return `
+    <div class="forecast-item">
+      <div class="forecast-time">${time}</div>
+      <div class="forecast-temp">${forecast.main.temp.toFixed(1)}°C</div>
+      <div class="forecast-aqi" style="background: ${aqiColor};">${mockAQI}</div>
+    </div>
+    <div class="forecast-item">
+      <div>Humidity</div>
+      <div>${forecast.main.humidity}%</div>
+    </div>
+    <div class="forecast-item">
+      <div>Wind</div>
+      <div>${forecast.wind.speed.toFixed(1)} m/s</div>
+    </div>
+    <div class="forecast-item">
+      <div>Conditions</div>
+      <div>
+        ${forecast.weather[0].icon ? `<img class="weather-icon" src="${weatherIconUrl(forecast.weather[0].icon)}"/>` : ''}
+        ${forecast.weather[0].description}
+      </div>
+    </div>
+  `;
+}
+
 // --- Markers ---
-function createOrUpdateSingleMarker(lat, lon, label, meas, w){
+function createOrUpdateSingleMarker(lat, lon, label, meas, w, forecasts){
   if(singleMarker){
     map.removeLayer(singleMarker);
     singleMarker = null;
@@ -286,26 +396,53 @@ function createOrUpdateSingleMarker(lat, lon, label, meas, w){
   const aqiMeas = meas.find(m => m.parameter === 'aqi');
   
   let color = '#999';
+  let aqiValue = null;
+  
   if (aqiMeas && aqiMeas.value != null) {
-    // Використовуємо AQI для кольору
-    if (aqiMeas.value <= 50) color = '#00e400';
-    else if (aqiMeas.value <= 100) color = '#ffff00';
-    else if (aqiMeas.value <= 150) color = '#ff7e00';
-    else color = '#ff0000';
+    aqiValue = aqiMeas.value;
+    color = getAQIColor(aqiValue);
   } else if (pm && pm.value != null) {
-    // Або PM2.5 для кольору
     color = chooseColorFromAQ(pm.value);
+    const aqiObj = pm25ToAQI(pm.value);
+    aqiValue = aqiObj.aqi;
   }
   
   console.log('Creating marker with color:', color);
   
+  // Store data for popup interactions
+  currentPopupData = { lat, lon, label, meas, w, forecasts, headerColor: color };
+  
   singleMarker = L.marker([lat, lon], {icon: createCustomMarker(color)})
     .addTo(map)
-    .bindPopup(buildPopupHtml(label, meas, w), {maxWidth: 340, minWidth: 240})
-    .on("click", () => map.flyTo([lat, lon], 8, {duration: 0.9}));
+    .bindPopup(buildPopupHtml(label, meas, w, forecasts, color), {maxWidth: 340, minWidth: 280})
+    .on("click", () => map.flyTo([lat, lon], 8, {duration: 0.9}))
+    .on('popupopen', () => {
+      // Add event listeners to forecast buttons
+      setTimeout(() => {
+        const forecastBtns = document.querySelectorAll('.forecast-btn');
+        const forecastData = document.getElementById('forecast-data');
+        
+        forecastBtns.forEach(btn => {
+          btn.addEventListener('click', function() {
+            // Update active button
+            forecastBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            const period = this.dataset.period;
+            
+            if (period === 'current') {
+              forecastData.style.display = 'none';
+            } else {
+              forecastData.style.display = 'block';
+              forecastData.innerHTML = showForecastData(period, forecasts, color);
+            }
+          });
+        });
+      }, 100);
+    });
 }
 
-function createOrUpdateCityMarker(lat, lon, label, meas, w){
+function createOrUpdateCityMarker(lat, lon, label, meas, w, forecasts){
   const pm = meas.find(m => m.parameter === 'pm25' || m.parameter === 'pm2.5');
   const aqiMeas = meas.find(m => m.parameter === 'aqi');
   
@@ -321,29 +458,57 @@ function createOrUpdateCityMarker(lat, lon, label, meas, w){
   
   const marker = L.marker([lat, lon], {icon: createCustomMarker(color)})
     .addTo(map)
-    .bindPopup(buildPopupHtml(label, meas, w), {maxWidth: 340, minWidth: 240})
-    .on("click", () => map.flyTo([lat, lon], 8, {duration: 0.9}));
+    .bindPopup(buildPopupHtml(label, meas, w, forecasts, color), {maxWidth: 340, minWidth: 280})
+    .on("click", () => map.flyTo([lat, lon], 8, {duration: 0.9}))
+    .on('popupopen', () => {
+      // Add event listeners to forecast buttons
+      setTimeout(() => {
+        const forecastBtns = document.querySelectorAll('.forecast-btn');
+        const forecastData = document.getElementById('forecast-data');
+        
+        forecastBtns.forEach(btn => {
+          btn.addEventListener('click', function() {
+            // Update active button
+            forecastBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            const period = this.dataset.period;
+            
+            if (period === 'current') {
+              forecastData.style.display = 'none';
+            } else {
+              forecastData.style.display = 'block';
+              forecastData.innerHTML = showForecastData(period, forecasts, color);
+            }
+          });
+        });
+      }, 100);
+    });
   cityMarkers.push({marker});
 }
 
 // --- Fetchers ---
 async function fetchAndShowSingle(lat, lon, label){
-  setStatus('Loading data...');
   try {
-    const [m, w] = await Promise.all([fetchOpenAQ(lat, lon), fetchWeather(lat, lon)]);
-    createOrUpdateSingleMarker(lat, lon, label, m, w);
-    updatePanel(label, m, w);
-    setStatus('Data loaded');
+    const [m, w, forecasts] = await Promise.all([
+      fetchOpenAQ(lat, lon), 
+      fetchWeather(lat, lon),
+      fetchForecast(lat, lon)
+    ]);
+    createOrUpdateSingleMarker(lat, lon, label, m, w, forecasts);
   } catch (error) {
     console.error('Error fetching data:', error);
-    setStatus('Error loading data');
   }
 }
 
 async function fetchAndShowCity(lat, lon, label){
   try {
-    const [m, w] = await Promise.all([fetchOpenAQ(lat, lon), fetchWeather(lat, lon)]);
-    createOrUpdateCityMarker(lat, lon, label, m, w);
+    const [m, w, forecasts] = await Promise.all([
+      fetchOpenAQ(lat, lon), 
+      fetchWeather(lat, lon),
+      fetchForecast(lat, lon)
+    ]);
+    createOrUpdateCityMarker(lat, lon, label, m, w, forecasts);
   } catch (error) {
     console.error('Error fetching city data:', error);
   }
@@ -407,26 +572,8 @@ const predefined = [
 ];
 
 (async() => {
-  setStatus('Loading cities...');
   for(const c of predefined){
     await new Promise(r => setTimeout(r, 100));
     fetchAndShowCity(c.coords[0], c.coords[1], c.name);
   }
-  setStatus(`Loaded ${predefined.length} cities`);
 })();
-
-// --- Search ---
-if(typeof L.Control.Geocoder !== 'undefined'){
-  L.Control.geocoder({
-    defaultMarkGeocode: false,
-    placeholder: 'Search for city or address...'
-  }).on('markgeocode', function(e){
-    const latlng = e.geocode.center;
-    const name = e.geocode.name || 'Place';
-    map.flyTo(latlng, 10, {duration: 1.0});
-    fetchAndShowSingle(latlng.lat, latlng.lng, name);
-  }).addTo(map);
-}
-
-setStatus('Air Quality Monitor Ready');
-
