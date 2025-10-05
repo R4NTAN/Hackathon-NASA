@@ -6,7 +6,7 @@
 ## 🧩 Challenge  
 **From EarthData to Action: Cloud Computing with Earth Observation Data for Predicting Cleaner, Safer Skies**
 
-> Our project focuses on utilizing Earth observation data and cloud computing technologies to predict and visualize air quality, helping build cleaner and safer skies for the future.
+> Our project focuses on utilizing Earth observation data  technologies to predict and visualize air quality, helping build cleaner and safer skies for the future.
 
 ---
 
