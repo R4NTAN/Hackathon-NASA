@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Air and Weather Monitoring with Highlight</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"/>
+<link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+<div class="app">
+
+<!-- 🔹 НОВА ПАНЕЛЬ -->
+<aside>
+  <h1>🌍 The air quality</h1>
+
+  <div class="card">
+    <div class="label">📍 Coordinates</div>
+    <div id="coords" class="value">Click on the map or search</div>
+  </div>
+
+  <div class="card">
+    <div class="label">🔎 Zoom</div>
+    <div id="zoom" class="value">-</div>
+  </div>
+
+  <div class="card">
+    <div class="label">🗺️ Map Type</div>
+    <select id="mapType" class="select-map">
+      <option value="satellite">Satellite</option>      
+      <option value="light">Light</option>
+      <option value="terrain">Terrain</option>
+      <option value="dark">Dark</option>
+    </select>
+  </div>
+
+  <div class="controls">
+    <button id="locateBtn" class="btn primary">📍 Locate me</button>
+    <button id="resetBtn" class="btn">🔁 Reset</button>
+    <button id="clearBtn" class="btn danger">🗑 Clear</button>
+  </div>
+
+  <div class="legend">
+    <div class="legend-title">AQI Levels</div>
+    <div class="legend-item"><span class="sw good"></span> Good (0–50)</div>
+    <div class="legend-item"><span class="sw moderate"></span> Moderate (51–100)</div>
+    <div class="legend-item"><span class="sw unhealthy1"></span> Unhealthy (101–150)</div>
+    <div class="legend-item"><span class="sw unhealthy2"></span> Very Unhealthy (151+)</div>
+  </div>
+
+  <div class="card">
+    <div class="label">📊 Data status</div>
+    <div id="statusText" class="value">Ready</div>
+  </div>
+
+
+</aside>
+
+<main><div id="map"></div></main>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
