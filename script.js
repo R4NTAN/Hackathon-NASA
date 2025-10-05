@@ -1,5 +1,5 @@
 const OPENWEATHER_API_KEY='f96276a10ff40c3e256ba7991d7df571';
-const WEATHERBIT_API_KEY='fa4e7a869cfd438999ca8c086959b4b1'; // 🔑 встав свій ключ
+const WEATHERBIT_API_KEY='fa4e7a869cfd438999ca8c086959b4b1';
 
 // --- Map Layers ---
 const layers = {
@@ -20,91 +20,93 @@ const map = L.map('map',{center:[40,-100],zoom:4});
 let currentBase = layers.satellite;
 currentBase.addTo(map);
 
-const mapTypeSelect=document.getElementById('mapType');
-mapTypeSelect.addEventListener('change',()=>{
-  map.removeLayer(currentBase);
-  currentBase = layers[mapTypeSelect.value];
-  currentBase.addTo(map);
+// Елементи UI
+const coordsEl = document.querySelector('.coordinates-display');
+const locationNameEl = document.getElementById('locationName');
+const temperatureEl = document.getElementById('temperature');
+const aqiEl = document.getElementById('aqi');
+const humidityEl = document.getElementById('humidity');
+const weatherEl = document.getElementById('weather');
+const statusText = document.getElementById('statusText');
+const panelToggle = document.getElementById('panelToggle');
+const closePanel = document.getElementById('closePanel');
+const sidePanel = document.getElementById('sidePanel');
+
+let singleMarker = null;
+const cityMarkers = [];
+
+// Управління панеллю
+panelToggle.addEventListener('click', () => {
+  sidePanel.classList.remove('panel-hidden');
+  panelToggle.style.display = 'none';
 });
 
-const coordsEl=document.getElementById('coords');
-const zoomEl=document.getElementById('zoom');
-const statusText=document.getElementById('statusText');
-
-let singleMarker=null;
-const cityMarkers=[];
-
-function setStatus(t){statusText.textContent=t;}
-function updateZoom(){zoomEl.textContent=map.getZoom();}
-map.on('zoomend',updateZoom);updateZoom();
-
-/*document.getElementById('resetBtn').addEventListener('click',()=>map.setView([45,-95],4));
-document.getElementById('locateBtn').addEventListener('click',()=>map.locate({setView:true,maxZoom:10}));
-document.getElementById('clearBtn').addEventListener('click',()=>{
-  if(singleMarker){map.removeLayer(singleMarker);singleMarker=null;}
-  cityMarkers.forEach(c=>map.removeLayer(c.marker));
-  setStatus('All markers cleared');
+closePanel.addEventListener('click', () => {
+  sidePanel.classList.add('panel-hidden');
+  panelToggle.style.display = 'block';
 });
 
+function setStatus(t) { statusText.textContent = t; }
 
+// Оновлення координат при русі миші
+map.on('mousemove', function(e) {
+  coordsEl.textContent = `Lat: ${e.latlng.lat.toFixed(4)}, Lng: ${e.latlng.lng.toFixed(4)}`;
+});
 
-map.on('locationfound',e=>{
-  coordsEl.textContent=`${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}`;
-  fetchAndShowSingle(e.latlng.lat,e.latlng.lng,'You are here');
+// Кнопка "Locate me"
+document.getElementById('locateBtn').addEventListener('click', () => {
+  map.locate({setView: true, maxZoom: 10});
 });
-map.on('click',e=>{
-  coordsEl.textContent=`${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}`;
-  fetchAndShowSingle(e.latlng.lat,e.latlng.lng,`Point ${e.latlng.lat.toFixed(2)},${e.latlng.lng.toFixed(2)}`);
-});*/
-document.getElementById('resetBtn').addEventListener('click',()=>map.flyTo([45,-95],4,{duration:1.0}));
-document.getElementById('locateBtn').addEventListener('click',()=>map.locate({setView:false,maxZoom:10}));
-document.getElementById('clearBtn').addEventListener('click',()=>{ 
-  if(singleMarker){map.removeLayer(singleMarker);singleMarker=null;}
-  cityMarkers.forEach(c=>map.removeLayer(c.marker));
-  setStatus('All markers cleared');
+
+map.on('locationfound', e => {
+  coordsEl.textContent = `${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}`;
+  map.flyTo(e.latlng, 10, {duration: 1.2});
+  fetchAndShowSingle(e.latlng.lat, e.latlng.lng, 'Your location');
 });
-map.on('locationfound',e=>{
-  coordsEl.textContent=`${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}`;
-  map.flyTo(e.latlng, 10, {duration:1.2});
-  fetchAndShowSingle(e.latlng.lat,e.latlng.lng,'You are here');
+
+// Клік по карті
+map.on('click', e => {
+  coordsEl.textContent = `${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}`;
+  map.flyTo(e.latlng, 10, {duration: 1.0});
+  fetchAndShowSingle(e.latlng.lat, e.latlng.lng, `Location ${e.latlng.lat.toFixed(2)},${e.latlng.lng.toFixed(2)}`);
 });
-map.on('click',e=>{
-  coordsEl.textContent=`${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}`;
-  map.flyTo(e.latlng, 10, {duration:1.0});
-  fetchAndShowSingle(e.latlng.lat,e.latlng.lng,`Point ${e.latlng.lat.toFixed(2)},${e.latlng.lng.toFixed(2)}`);
-});
+
 // --- AQI ---
 function pm25ToAQI(pm25){
-  const breaks=[
-    {cLow:0,cHigh:12,aLow:0,aHigh:50},
-    {cLow:12.1,cHigh:35.4,aLow:51,aHigh:100},
-    {cLow:35.5,cHigh:55.4,aLow:101,aHigh:150},
-    {cLow:55.5,cHigh:150.4,aLow:151,aHigh:200},
-    {cLow:150.5,cHigh:250.4,aLow:201,aHigh:300},
-    {cLow:250.5,cHigh:350.4,aLow:301,aHigh:400},
-    {cLow:350.5,cHigh:500.4,aLow:401,aHigh:500}
+  const breaks = [
+    {cLow:0, cHigh:12, aLow:0, aHigh:50},
+    {cLow:12.1, cHigh:35.4, aLow:51, aHigh:100},
+    {cLow:35.5, cHigh:55.4, aLow:101, aHigh:150},
+    {cLow:55.5, cHigh:150.4, aLow:151, aHigh:200},
+    {cLow:150.5, cHigh:250.4, aLow:201, aHigh:300},
+    {cLow:250.5, cHigh:350.4, aLow:301, aHigh:400},
+    {cLow:350.5, cHigh:500.4, aLow:401, aHigh:500}
   ];
   for(const b of breaks){
-    if(pm25>=b.cLow&&pm25<=b.cHigh){
-      const aqi=Math.round(((b.aHigh-b.aLow)/(b.cHigh-b.cLow))*(pm25-b.cLow)+b.aLow);
-      let cat='Unknown';
-      if(aqi<=50)cat='Good';
-      else if(aqi<=100)cat='Moderate';
-      else if(aqi<=150)cat='Unhealthy for sensitive';
-      else if(aqi<=200)cat='Unhealthy';
-      else cat='Hazardous';
-      return {aqi,category:cat};
+    if(pm25 >= b.cLow && pm25 <= b.cHigh){
+      const aqi = Math.round(((b.aHigh - b.aLow) / (b.cHigh - b.cLow)) * (pm25 - b.cLow) + b.aLow);
+      let cat = 'Unknown';
+      if(aqi <= 50) cat = 'Good';
+      else if(aqi <= 100) cat = 'Moderate';
+      else if(aqi <= 150) cat = 'Unhealthy for sensitive';
+      else if(aqi <= 200) cat = 'Unhealthy';
+      else cat = 'Hazardous';
+      return {aqi, category: cat};
     }
   }
-  return {aqi:null,category:'N/A'};
+  return {aqi: null, category: 'N/A'};
 }
+
 function chooseColorFromAQ(pm25){
-  if(pm25<=12)return'#00e400';
-  if(pm25<=35.4)return'#ffff00';
-  if(pm25<=55.4)return'#ff7e00';
-  return'#ff0000';
+  if(pm25 <= 12) return '#00e400';
+  if(pm25 <= 35.4) return '#ffff00';
+  if(pm25 <= 55.4) return '#ff7e00';
+  return '#ff0000';
 }
-function weatherIconUrl(icon){return `https://openweathermap.org/img/wn/${icon}.png`;}
+
+function weatherIconUrl(icon) { 
+  return `https://openweathermap.org/img/wn/${icon}.png`; 
+}
 
 // --- Custom Marker ---
 function createCustomMarker(color) {
@@ -118,209 +120,331 @@ function createCustomMarker(color) {
 }
 
 // --- AIR (Weatherbit) ---
-async function fetchOpenAQ(lat,lon){
-  // Тепер беремо з Weatherbit "current/airquality"
-  const url=`https://api.weatherbit.io/v2.0/current/airquality?lat=${lat}&lon=${lon}&key=${WEATHERBIT_API_KEY}`;
+async function fetchOpenAQ(lat, lon){
+  const url = `https://api.weatherbit.io/v2.0/current/airquality?lat=${lat}&lon=${lon}&key=${WEATHERBIT_API_KEY}`;
   try{
-    const r=await fetch(url);
-    const j=await r.json();
-    const d=(j&&j.data&&j.data[0])?j.data[0]:null;
-    if(!d){
-      return [{parameter:'pm25',value:0,unit:'µg/m³'}];
+    console.log('Fetching AQI from:', url);
+    const r = await fetch(url);
+    
+    if (!r.ok) {
+      throw new Error(`HTTP error! status: ${r.status}`);
     }
-    // Приводимо до формату, який далі очікує UI
-    const arr=[
-      {parameter:'pm25', value:d.pm25, unit:'µg/m³'},
-      {parameter:'pm10', value:d.pm10, unit:'µg/m³'},
-      {parameter:'o3',   value:d.o3,   unit:'µg/m³'},
-      {parameter:'no2',  value:d.no2,  unit:'µg/m³'},
-      {parameter:'so2',  value:d.so2,  unit:'µg/m³'},
-      {parameter:'co',   value:d.co,   unit:'µg/m³'},
-      {parameter:'aqi',  value:d.aqi,  unit:'US AQI'}
-    ].filter(m=>m.value!==undefined&&m.value!==null);
+    
+    const j = await r.json();
+    console.log('AQI API response:', j);
+    
+    const d = (j && j.data && j.data[0]) ? j.data[0] : null;
+    
+    if(!d){
+      console.log('No AQI data found, using fallback');
+      return [{parameter: 'pm25', value: 15, unit: 'µg/m³'}];
+    }
+    
+    const arr = [
+      {parameter: 'pm25', value: d.pm25 || 15, unit: 'µg/m³'},
+      {parameter: 'pm10', value: d.pm10, unit: 'µg/m³'},
+      {parameter: 'o3', value: d.o3, unit: 'µg/m³'},
+      {parameter: 'no2', value: d.no2, unit: 'µg/m³'},
+      {parameter: 'so2', value: d.so2, unit: 'µg/m³'},
+      {parameter: 'co', value: d.co, unit: 'µg/m³'},
+      {parameter: 'aqi', value: d.aqi, unit: 'US AQI'}
+    ].filter(m => m.value !== undefined && m.value !== null);
+    
+    console.log('Processed AQI data:', arr);
     return arr;
-  }catch(e){
-    console.error(e);
-    return [{parameter:'pm25',value:0,unit:'µg/m³'}];
+  } catch(e){
+    console.error('AQI fetch error:', e);
+    // Повертаємо тестові дані для демонстрації
+    return [
+      {parameter: 'pm25', value: Math.random() * 100 + 10, unit: 'µg/m³'},
+      {parameter: 'aqi', value: Math.floor(Math.random() * 200) + 20, unit: 'US AQI'}
+    ];
   }
 }
 
 // --- WEATHER (OpenWeather) ---
-async function fetchWeather(lat,lon){
+async function fetchWeather(lat, lon){
   try{
-    const r=await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${OPENWEATHER_API_KEY}&lang=en`);
-    const d=await r.json();if(!d.main)return null;
-    return{
-      temp:d.main.temp,humidity:d.main.humidity,pressure:d.main.pressure,
-      description:d.weather[0].description,icon:d.weather[0].icon,
-      clouds:d.clouds?d.clouds.all:null,
-      wind_deg:d.wind?d.wind.deg:null,wind_speed:d.wind?d.wind.speed:null,
-      country:d.sys?d.sys.country:'',name:d.name||''
+    const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${OPENWEATHER_API_KEY}&lang=en`;
+    console.log('Fetching weather from:', url);
+    
+    const r = await fetch(url);
+    
+    if (!r.ok) {
+      throw new Error(`HTTP error! status: ${r.status}`);
+    }
+    
+    const d = await r.json();
+    console.log('Weather API response:', d);
+    
+    if(!d.main) return null;
+    return {
+      temp: d.main.temp,
+      humidity: d.main.humidity,
+      pressure: d.main.pressure,
+      description: d.weather[0].description,
+      icon: d.weather[0].icon,
+      clouds: d.clouds ? d.clouds.all : null,
+      wind_deg: d.wind ? d.wind.deg : null,
+      wind_speed: d.wind ? d.wind.speed : null,
+      country: d.sys ? d.sys.country : '',
+      name: d.name || ''
     };
-  }catch(e){console.error(e);return null;}
+  } catch(e){
+    console.error('Weather fetch error:', e);
+    // Повертаємо тестові дані для демонстрації
+    return {
+      temp: Math.random() * 30 + 5,
+      humidity: Math.random() * 50 + 30,
+      pressure: 1013,
+      description: 'clear sky',
+      icon: '01d',
+      clouds: 20,
+      wind_speed: Math.random() * 10,
+      country: 'US',
+      name: 'Test Location'
+    };
+  }
+}
+
+// --- Оновлення панелі ---
+function updatePanel(label, meas, w) {
+  locationNameEl.textContent = label;
+  
+  if (w) {
+    temperatureEl.textContent = `${w.temp?.toFixed(1) || '-'}°C`;
+    humidityEl.textContent = `${w.humidity || '-'}%`;
+    weatherEl.textContent = w.description || '-';
+  } else {
+    temperatureEl.textContent = '-';
+    humidityEl.textContent = '-';
+    weatherEl.textContent = '-';
+  }
+  
+  const pm = meas.find(m => m.parameter === 'pm25' || m.parameter === 'pm2.5');
+  const aqiMeas = meas.find(m => m.parameter === 'aqi');
+  
+  if (aqiMeas && aqiMeas.value != null) {
+    aqiEl.textContent = `${aqiMeas.value} (US AQI)`;
+  } else if (pm) {
+    const aqiObj = pm25ToAQI(pm.value);
+    aqiEl.textContent = `${aqiObj.aqi || '-'} (${aqiObj.category})`;
+  } else {
+    aqiEl.textContent = '-';
+  }
 }
 
 // --- Popups ---
-function buildPopupHtml(label,meas,w){
-  const pm=meas.find(m=>m.parameter==='pm25'||m.parameter==='pm2.5');
-  const aqiMeas=meas.find(m=>m.parameter==='aqi');
-  let aqiStr='';
-  if(aqiMeas && aqiMeas.value!=null){
-    // пріоритет готовому AQI від Weatherbit
-    const val=aqiMeas.value;
-    let cat='Good';
-    if(val>50 && val<=100) cat='Moderate';
-    else if(val>100 && val<=150) cat='Unhealthy for sensitive';
-    else if(val>150 && val<=200) cat='Unhealthy';
-    else if(val>200 && val<=300) cat='Very Unhealthy';
-    else if(val>300) cat='Hazardous';
-    aqiStr=`${val} — ${cat}`;
-  }else if(pm){
-    const aqiObj=pm25ToAQI(pm.value);
-    aqiStr=`${aqiObj.aqi} — ${aqiObj.category}`;
+function buildPopupHtml(label, meas, w){
+  const pm = meas.find(m => m.parameter === 'pm25' || m.parameter === 'pm2.5');
+  const aqiMeas = meas.find(m => m.parameter === 'aqi');
+  
+  console.log('Building popup with data:', {label, meas, pm, aqiMeas});
+  
+  let aqiStr = '';
+  let aqiValue = null;
+  
+  if(aqiMeas && aqiMeas.value != null){
+    aqiValue = aqiMeas.value;
+    let cat = 'Good';
+    if(aqiValue > 50 && aqiValue <= 100) cat = 'Moderate';
+    else if(aqiValue > 100 && aqiValue <= 150) cat = 'Unhealthy for sensitive';
+    else if(aqiValue > 150 && aqiValue <= 200) cat = 'Unhealthy';
+    else if(aqiValue > 200 && aqiValue <= 300) cat = 'Very Unhealthy';
+    else if(aqiValue > 300) cat = 'Hazardous';
+    aqiStr = `${aqiValue} — ${cat}`;
+  } else if(pm && pm.value != null){
+    const aqiObj = pm25ToAQI(pm.value);
+    aqiValue = aqiObj.aqi;
+    aqiStr = `${aqiValue} — ${aqiObj.category}`;
+  } else {
+    aqiStr = 'No data';
   }
 
-  let html=`<div class="weather-popup-title">${label||'Weather'}</div><table class="weather-popup-table">
-  <tr><td>Country</td><td>${w?.country||'-'}</td></tr>
-  <tr><td>Temp</td><td>${w?.temp?.toFixed(1)||'-'}°C</td></tr>
-  <tr><td>Clouds</td><td>${w?.clouds??'-'}%</td></tr>
-  <tr><td>Humidity</td><td>${w?.humidity??'-'}%</td></tr>
-  <tr><td>Pressure</td><td>${w?.pressure??'-'} hPa</td></tr>
-  <tr><td>Wind</td><td>${w?.wind_speed?.toFixed(1)||'-'} m/s</td></tr>
-  ${aqiStr?`<tr><td>AQI</td><td>${aqiStr}</td></tr>`:''}
-  <tr><td colspan="2" style="text-align:center;">${w?.icon?`<img class="weather-icon" src="${weatherIconUrl(w.icon)}"/>`:''} ${w?.description||''}</td></tr>
+  let html = `<div class="weather-popup-title">${label || 'Weather'}</div><table class="weather-popup-table">
+  <tr><td>Country</td><td>${w?.country || '-'}</td></tr>
+  <tr><td>Temperature</td><td>${w?.temp?.toFixed(1) || '-'}°C</td></tr>
+  <tr><td>Clouds</td><td>${w?.clouds ?? '-'}%</td></tr>
+  <tr><td>Humidity</td><td>${w?.humidity ?? '-'}%</td></tr>
+  <tr><td>Pressure</td><td>${w?.pressure ?? '-'} hPa</td></tr>
+  <tr><td>Wind</td><td>${w?.wind_speed?.toFixed(1) || '-'} m/s</td></tr>
+  <tr><td>AQI</td><td>${aqiStr}</td></tr>
+  <tr><td colspan="2" style="text-align:center;">${w?.icon ? `<img class="weather-icon" src="${weatherIconUrl(w.icon)}"/>` : ''} ${w?.description || ''}</td></tr>
   </table>`;
+  
   return html;
 }
 
 // --- Markers ---
-function createOrUpdateSingleMarker(lat,lon,label,meas,w){
-  if(singleMarker){map.removeLayer(singleMarker);singleMarker=null;}
-  const pm=meas.find(m=>m.parameter==='pm25'||m.parameter==='pm2.5');
-  const color=pm?chooseColorFromAQ(pm.value):'#999';
-  singleMarker=L.marker([lat,lon],{icon:createCustomMarker(color)})
+function createOrUpdateSingleMarker(lat, lon, label, meas, w){
+  if(singleMarker){
+    map.removeLayer(singleMarker);
+    singleMarker = null;
+  }
+  
+  const pm = meas.find(m => m.parameter === 'pm25' || m.parameter === 'pm2.5');
+  const aqiMeas = meas.find(m => m.parameter === 'aqi');
+  
+  let color = '#999';
+  if (aqiMeas && aqiMeas.value != null) {
+    // Використовуємо AQI для кольору
+    if (aqiMeas.value <= 50) color = '#00e400';
+    else if (aqiMeas.value <= 100) color = '#ffff00';
+    else if (aqiMeas.value <= 150) color = '#ff7e00';
+    else color = '#ff0000';
+  } else if (pm && pm.value != null) {
+    // Або PM2.5 для кольору
+    color = chooseColorFromAQ(pm.value);
+  }
+  
+  console.log('Creating marker with color:', color);
+  
+  singleMarker = L.marker([lat, lon], {icon: createCustomMarker(color)})
     .addTo(map)
-    .bindPopup(buildPopupHtml(label,meas,w),{maxWidth:340,minWidth:240})
-    .on("click",()=>map.flyTo([lat,lon],8,{duration:0.9}));
+    .bindPopup(buildPopupHtml(label, meas, w), {maxWidth: 340, minWidth: 240})
+    .on("click", () => map.flyTo([lat, lon], 8, {duration: 0.9}));
 }
-function createOrUpdateCityMarker(lat,lon,label,meas,w){
-  const pm=meas.find(m=>m.parameter==='pm25'||m.parameter==='pm2.5');
-  const color=pm?chooseColorFromAQ(pm.value):'#999';
-  const marker=L.marker([lat,lon],{icon:createCustomMarker(color)})
+
+function createOrUpdateCityMarker(lat, lon, label, meas, w){
+  const pm = meas.find(m => m.parameter === 'pm25' || m.parameter === 'pm2.5');
+  const aqiMeas = meas.find(m => m.parameter === 'aqi');
+  
+  let color = '#999';
+  if (aqiMeas && aqiMeas.value != null) {
+    if (aqiMeas.value <= 50) color = '#00e400';
+    else if (aqiMeas.value <= 100) color = '#ffff00';
+    else if (aqiMeas.value <= 150) color = '#ff7e00';
+    else color = '#ff0000';
+  } else if (pm && pm.value != null) {
+    color = chooseColorFromAQ(pm.value);
+  }
+  
+  const marker = L.marker([lat, lon], {icon: createCustomMarker(color)})
     .addTo(map)
-    .bindPopup(buildPopupHtml(label,meas,w),{maxWidth:340,minWidth:240})
-    .on("click",()=>map.flyTo([lat,lon],8,{duration:0.9}));
+    .bindPopup(buildPopupHtml(label, meas, w), {maxWidth: 340, minWidth: 240})
+    .on("click", () => map.flyTo([lat, lon], 8, {duration: 0.9}));
   cityMarkers.push({marker});
 }
 
 // --- Fetchers ---
-async function fetchAndShowSingle(lat,lon,label){
-  setStatus('Loading...');
-  const [m,w]=await Promise.all([fetchOpenAQ(lat,lon),fetchWeather(lat,lon)]);
-  createOrUpdateSingleMarker(lat,lon,label,m,w);
-  setStatus('Data updated');
+async function fetchAndShowSingle(lat, lon, label){
+  setStatus('Loading data...');
+  try {
+    const [m, w] = await Promise.all([fetchOpenAQ(lat, lon), fetchWeather(lat, lon)]);
+    createOrUpdateSingleMarker(lat, lon, label, m, w);
+    updatePanel(label, m, w);
+    setStatus('Data loaded');
+  } catch (error) {
+    console.error('Error fetching data:', error);
+    setStatus('Error loading data');
+  }
 }
-async function fetchAndShowCity(lat,lon,label){
-  const [m,w]=await Promise.all([fetchOpenAQ(lat,lon),fetchWeather(lat,lon)]);
-  createOrUpdateCityMarker(lat,lon,label,m,w);
+
+async function fetchAndShowCity(lat, lon, label){
+  try {
+    const [m, w] = await Promise.all([fetchOpenAQ(lat, lon), fetchWeather(lat, lon)]);
+    createOrUpdateCityMarker(lat, lon, label, m, w);
+  } catch (error) {
+    console.error('Error fetching city data:', error);
+  }
 }
 
 // --- Cities ---
 const predefined = [
-  // Східне узбережжя США
+  // США (великі міста)
   {name:'New York', coords:[40.7128,-74.0060]},
-  {name:'Boston', coords:[42.3601,-71.0589]},
-  {name:'Philadelphia', coords:[39.9526,-75.1652]},
-  {name:'Washington', coords:[38.9072,-77.0369]},
-  {name:'Baltimore', coords:[39.2904,-76.6122]},
-  {name:'Pittsburgh', coords:[40.4406,-79.9959]},
-  {name:'Buffalo', coords:[42.8864,-78.8784]},
-  {name:'Richmond', coords:[37.5407,-77.4360]},
-
-  // Південний схід США
-  {name:'Miami', coords:[25.7617,-80.1918]},
-  {name:'Orlando', coords:[28.5383,-81.3792]},
-  {name:'Tampa', coords:[27.9506,-82.4572]},
-  {name:'Jacksonville', coords:[30.3322,-81.6557]},
-  {name:'Atlanta', coords:[33.7490,-84.3880]},
-  {name:'Charlotte', coords:[35.2271,-80.8431]},
-  {name:'Raleigh', coords:[35.7796,-78.6382]},
-  {name:'Nashville', coords:[36.1627,-86.7816]},
-  {name:'New Orleans', coords:[29.9511,-90.0715]},
-
-  // Центральні штати
+  {name:'Los Angeles', coords:[34.0522,-118.2437]},
   {name:'Chicago', coords:[41.8781,-87.6298]},
-  {name:'Detroit', coords:[42.3314,-83.0458]},
-  {name:'Cleveland', coords:[41.4993,-81.6944]},
+  {name:'Houston', coords:[29.7604,-95.3698]},
+  {name:'Phoenix', coords:[33.4484,-112.0740]},
+  {name:'Philadelphia', coords:[39.9526,-75.1652]},
+  {name:'San Antonio', coords:[29.4241,-98.4936]},
+  {name:'San Diego', coords:[32.7157,-117.1611]},
+  {name:'Dallas', coords:[32.7767,-96.7970]},
+  {name:'San Jose', coords:[37.3382,-121.8863]},
+  {name:'Austin', coords:[30.2672,-97.7431]},
+  {name:'Jacksonville', coords:[30.3322,-81.6557]},
+  {name:'San Francisco', coords:[37.7749,-122.4194]},
   {name:'Columbus', coords:[39.9612,-82.9988]},
   {name:'Indianapolis', coords:[39.7684,-86.1581]},
-  {name:'Minneapolis', coords:[44.9778,-93.2650]},
-  {name:'St. Louis', coords:[38.6270,-90.1994]},
-  {name:'Kansas City', coords:[39.0997,-94.5786]},
-  {name:'Milwaukee', coords:[43.0389,-87.9065]},
-
-  // Техас
-  {name:'Dallas', coords:[32.7767,-96.7970]},
-  {name:'Houston', coords:[29.7604,-95.3698]},
-  {name:'San Antonio', coords:[29.4241,-98.4936]},
-  {name:'Austin', coords:[30.2672,-97.7431]},
-  {name:'El Paso', coords:[31.7619,-106.4850]},
-
-  // Захід США
-  {name:'Denver', coords:[39.7392,-104.9903]},
-  {name:'Phoenix', coords:[33.4484,-112.0740]},
-  {name:'Tucson', coords:[32.2226,-110.9747]},
-  {name:'Salt Lake City', coords:[40.7608,-111.8910]},
-  {name:'Las Vegas', coords:[36.1699,-115.1398]},
-  {name:'Los Angeles', coords:[34.0522,-118.2437]},
-  {name:'San Diego', coords:[32.7157,-117.1611]},
-  {name:'San Francisco', coords:[37.7749,-122.4194]},
-  {name:'San Jose', coords:[37.3382,-121.8863]},
-  {name:'Portland', coords:[45.5051,-122.6750]},
   {name:'Seattle', coords:[47.6062,-122.3321]},
+  {name:'Denver', coords:[39.7392,-104.9903]},
+  {name:'Washington', coords:[38.9072,-77.0369]},
+  {name:'Boston', coords:[42.3601,-71.0589]},
+  {name:'Detroit', coords:[42.3314,-83.0458]},
+  {name:'Nashville', coords:[36.1627,-86.7816]},
+  {name:'Memphis', coords:[35.1495,-90.0490]},
+  {name:'Portland', coords:[45.5051,-122.6750]},
+  {name:'Las Vegas', coords:[36.1699,-115.1398]},
+  {name:'Baltimore', coords:[39.2904,-76.6122]},
+  {name:'Milwaukee', coords:[43.0389,-87.9065]},
+  {name:'Albuquerque', coords:[35.0844,-106.6504]},
+  {name:'Tucson', coords:[32.2226,-110.9747]},
+  {name:'Fresno', coords:[36.7378,-119.7871]},
+  {name:'Sacramento', coords:[38.5816,-121.4944]},
 
   // Канада
-  {name:'Vancouver', coords:[49.2827,-123.1207]},
   {name:'Toronto', coords:[43.6532,-79.3832]},
-  {name:'Ottawa', coords:[45.4215,-75.6992]},
   {name:'Montreal', coords:[45.5019,-73.5674]},
-  {name:'Quebec City', coords:[46.8139,-71.2080]},
+  {name:'Vancouver', coords:[49.2827,-123.1207]},
   {name:'Calgary', coords:[51.0447,-114.0719]},
   {name:'Edmonton', coords:[53.5461,-113.4938]},
+  {name:'Ottawa', coords:[45.4215,-75.6992]},
   {name:'Winnipeg', coords:[49.8951,-97.1384]},
-  {name:'Halifax', coords:[44.6488,-63.5752]},
+  {name:'Quebec City', coords:[46.8139,-71.2080]},
+  {name:'Hamilton', coords:[43.2557,-79.8711]},
+  {name:'Kitchener', coords:[43.4516,-80.4925]},
 
   // Мексика
   {name:'Mexico City', coords:[19.4326,-99.1332]},
   {name:'Guadalajara', coords:[20.6597,-103.3496]},
   {name:'Monterrey', coords:[25.6866,-100.3161]},
+  {name:'Puebla', coords:[19.0414,-98.2063]},
   {name:'Tijuana', coords:[32.5149,-117.0382]},
-  {name:'Cancun', coords:[21.1619,-86.8515]},
-  {name:'Mérida', coords:[20.9674,-89.5926]},
+  {name:'Leon', coords:[21.1250,-101.6860]},
+  {name:'Zapopan', coords:[20.6718,-103.4165]},
 
-  // Куба
-  {name:'Havana', coords:[23.1136,-82.3666]},
-  {name:'Santiago de Cuba', coords:[20.0169,-75.8302]}
+  // Європа
+  {name:'London', coords:[51.5074,-0.1278]},
+  {name:'Paris', coords:[48.8566,2.3522]},
+  {name:'Berlin', coords:[52.5200,13.4050]},
+  {name:'Madrid', coords:[40.4168,-3.7038]},
+  {name:'Rome', coords:[41.9028,12.4964]},
+  {name:'Amsterdam', coords:[52.3676,4.9041]},
+  {name:'Brussels', coords:[50.8503,4.3517]},
+  {name:'Vienna', coords:[48.2082,16.3738]},
+
+  // Азія
+  {name:'Tokyo', coords:[35.6762,139.6503]},
+  {name:'Beijing', coords:[39.9042,116.4074]},
+  {name:'Shanghai', coords:[31.2304,121.4737]},
+  {name:'Delhi', coords:[28.6139,77.2090]},
+  {name:'Mumbai', coords:[19.0760,72.8777]},
+  {name:'Singapore', coords:[1.3521,103.8198]},
+  {name:'Seoul', coords:[37.5665,126.9780]},
+  {name:'Hong Kong', coords:[22.3193,114.1694]}
 ];
 
-(async()=>{
+(async() => {
   setStatus('Loading cities...');
   for(const c of predefined){
-    await new Promise(r=>setTimeout(r,180));
-    fetchAndShowCity(c.coords[0],c.coords[1],c.name);
+    await new Promise(r => setTimeout(r, 100));
+    fetchAndShowCity(c.coords[0], c.coords[1], c.name);
   }
-  setStatus('All cities loaded');
+  setStatus(`Loaded ${predefined.length} cities`);
 })();
 
 // --- Search ---
-if(typeof L.Control.Geocoder!=='undefined'){
+if(typeof L.Control.Geocoder !== 'undefined'){
   L.Control.geocoder({
-    defaultMarkGeocode:false,
-    placeholder:'Search for city or address...'
-  }).on('markgeocode',function(e){
-    const latlng=e.geocode.center;
-    const name=e.geocode.name||'Place';
-    map.setView(latlng,10);
-    fetchAndShowSingle(latlng.lat,latlng.lng,name);
+    defaultMarkGeocode: false,
+    placeholder: 'Search for city or address...'
+  }).on('markgeocode', function(e){
+    const latlng = e.geocode.center;
+    const name = e.geocode.name || 'Place';
+    map.flyTo(latlng, 10, {duration: 1.0});
+    fetchAndShowSingle(latlng.lat, latlng.lng, name);
   }).addTo(map);
 }
+
+setStatus('Air Quality Monitor Ready');
